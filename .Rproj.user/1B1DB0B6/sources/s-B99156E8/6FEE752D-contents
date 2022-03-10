@@ -1,0 +1,514 @@
+---
+title: "ThesisDataYear1"
+author: "Amanda Hastings"
+date: "10/28/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+ThesisData<-read.csv("2021.RDataHastings.csv")
+library(tidyverse)
+library(dplyr)
+library(RColorBrewer)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+```
+
+# Plant Cover Long Data
+```{r}
+# Facet wrap plant cover data
+PlantCoverLong <- ThesisData %>%
+  dplyr::select(forest_type, burn_sev_category, gm_cover:tr_cover) %>%
+  tidyr::pivot_longer(gm_cover:tr_cover,
+               names_to = "FunctionalGroup",
+               values_to = "PercentPlantCover") %>%
+  mutate(FunctionalGroup = factor(FunctionalGroup)) %>%
+  mutate(forest_type = factor(
+    forest_type,
+    levels = c("Lower Montane", "Upper Montane", "Subalpine")
+  ))
+```
+
+# Plant Cover Plot
+```{r}
+# Facet wrap plant cover
+PlantCoverPlot <- ggplot(
+  PlantCoverLong,
+  aes(x = FunctionalGroup,
+      y = PercentPlantCover,
+      fill = burn_sev_category)
+) +
+  geom_boxplot() + ylim(0, 0.6) +
+  facet_wrap(~ forest_type) +
+  theme_classic() +
+  labs(x = "Functional Group",
+       y = "Percent Cover",
+       fill = "Burn Severity",
+       title = "Understory Plant Cover") +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(1, "cm")) +
+  scale_fill_manual(
+    name = "Burn Severity",
+    labels = c("Low", "High"), values=c("#fd8d3c","#bd0026"))+
+  theme(axis.text.x = element_text(
+    color = "black",
+    size = 9,
+    angle = 30,
+    vjust = .8,
+    hjust = .8
+  )) +
+  scale_x_discrete(labels = c("Graminoids", "Forbs", "Shrubs", "Seedlings"))
+PlantCoverPlot 
+```
+
+#-----------------------Understory cover analyses-------------------------------
+
+# Three-way ANOVA for Plant Cover by Functional Group
+```{r}
+LMFitAllPlants <- lm(sqrt(PercentPlantCover) ~ forest_type*factor(FunctionalGroup)*burn_sev_category, data= PlantCoverLong)
+anova(LMFitAllPlants)
+par(mfrow = c(1, 2))
+plot(LMFitAllPlants, which = 1:2)
+```
+
+# Tukey pairs for Three-way ANOVA Plant Cover
+```{r}
+emoutAllPlants <- emmeans(LMFitAllPlants, ~ forest_type*factor(FunctionalGroup)*burn_sev_category)
+emoutAllPlants
+pairs(emoutAllPlants)
+cld(emoutAllPlants)
+```
+
+# Graminoid ANOVA
+```{r,echo=FALSE}
+# # Graminoid ANOVA
+# hist(ThesisData$gm_cover)
+# LMFitGM <-
+#   lm(gm_cover ~ burn_sev_category * factor(forest_type), data = ThesisData)
+# anova(LMFitGM)
+# par(mfrow = c(1, 2))
+# plot(LMFitGM, which = 1:2)
+
+# sqrt Graminoid ANOVA - using this one 
+ThesisData$sqrtGM <- sqrt(ThesisData$gm_cover)
+hist(ThesisData$sqrtGM)
+LMFitsqrtGM <- lm(sqrtGM ~ burn_sev_category * factor(forest_type), data = ThesisData)
+anova(LMFitsqrtGM)
+par(mfrow = c(1, 2))
+plot(LMFitsqrtGM, which = 1:2)
+
+# # log Graminoid ANOVA - not using
+# ThesisData$logGM <- log(ThesisData$gm_cover + 1)
+# hist(ThesisData$logGM)
+# LMFitLogGM <-
+#   lm(logGM ~ burn_sev_category * factor(forest_type), data = ThesisData)
+# anova(LMFitLogGM)
+# par(mfrow = c(1, 2))
+# plot(LMFitLogGM, which = 1:2)
+```
+
+```{r}
+# Tukey pairs Graminoids
+emoutGM <- emmeans(LMFitsqrtGM, ~ burn_sev_category)
+emoutGM
+pairs(emoutGM)
+cld(emoutGM)
+```
+
+# Forb ANOVA
+```{r, echo=FALSE}
+# # Forb ANOVA
+# hist(ThesisData$fb_cover)
+# LMFitFB <-
+#   lm(fb_cover ~ burn_sev_category * forest_type, data = ThesisData)
+# anova(LMFitFB)
+# par(mfrow = c(1, 2))
+# plot(LMFitFB, which = 1:2)
+
+# sqrt Forb ANOVA - using this one
+ThesisData$sqrtFB <- sqrt(ThesisData$fb_cover)
+hist(ThesisData$sqrtFB)
+LMFitsqrtFB <- lm(sqrtFB ~ burn_sev_category * factor(forest_type), data = ThesisData)
+anova(LMFitsqrtFB)
+
+# # log Forb ANOVA - not using
+# ThesisData$logFB <- log(ThesisData$fb_cover + 1)
+# hist(ThesisData$logFB)
+```
+
+```{r}
+# Tukey pairs Forbs 
+emoutFB <- emmeans(LMFitsqrtFB, ~ factor(forest_type))
+emoutFB
+pairs(emoutFB)
+cld(emoutFB)
+```
+
+# Shrub ANOVA
+```{r, echo=FALSE}
+# # Shrub ANOVA
+# hist(ThesisData$sh_cover)
+# LMFitSH <-
+#   lm(sh_cover ~ burn_sev_category * forest_type, data = ThesisData)
+# anova(LMFitSH)
+# par(mfrow = c(1, 2))
+# plot(LMFitSH, which = 1:2)
+
+# sqrt Shrub ANOVA
+ThesisData$sqrtSH <- sqrt(ThesisData$sh_cover)
+hist(ThesisData$sqrtSH)
+LMFitsqrtSH <- lm(sqrtSH ~ burn_sev_category * factor(forest_type), data = ThesisData)
+anova(LMFitsqrtSH)
+par(mfrow = c(1, 2))
+plot(LMFitsqrtSH, which = 1:2)
+
+# # log Shrub ANOVA - not using
+# ThesisData$logSH <- log(ThesisData$sh_cover + 1)
+# hist(ThesisData$logSH)
+# LMFitLogSH <- lm(logSH ~ burn_sev_category * factor(forest_type), data = ThesisData)
+# anova(LMFitLogSH)
+
+```
+
+```{r}
+# Tukey pairs Shrubs
+emoutSH <- emmeans(LMFitsqrtSH, ~ burn_sev_category*factor(forest_type))
+emoutSH
+pairs(emoutSH)
+cld(emoutSH)
+```
+
+# Tree Seedling ANOVA
+```{r, echo=FALSE}
+# # Tree ANOVA
+# hist(ThesisData$tr_cover)
+# LMFitTR <-
+#   lm(tr_cover ~ burn_sev_category * forest_type, data = ThesisData)
+# anova(LMFitTR)
+# par(mfrow = c(1, 2))
+# plot(LMFitTR, which = 1:2)
+# 
+# # sqrt Tree ANOVA
+# ThesisData$sqrtTR <- sqrt(ThesisData$tr_cover)
+# hist(ThesisData$sqrtTR)
+# LMFitsqrtTR <- lm(sqrtTR ~ burn_sev_category * factor(forest_type), data = ThesisData)
+# anova(LMFitsqrtTR)
+
+# log Tree ANOVA
+ThesisData$logTR <- log(ThesisData$tr_cover + 1)
+hist(ThesisData$logTR)
+LMFitLogTR <- lm(logTR ~ burn_sev_category * factor(forest_type), data = ThesisData)
+anova(LMFitLogTR)
+par(mfrow = c(1, 2))
+plot(LMFitLogTR, which = 1:2)
+```
+
+```{r}
+# Tukey pairs Tree
+emoutTR <- emmeans(LMFitLogTR, ~ factor(forest_type))
+emoutTR
+pairs(emoutTR)
+cld(emoutTR)
+```
+
+#---------------------Seedlings species specific figure-------------------------
+
+# Seedlings long data
+```{r}
+# Facet wrap seedlings data
+SeedlingsLong <- ThesisData %>%
+  dplyr::select(forest_type, burn_sev_category, POTR:RONE, PIPO:PIEN) %>% 
+  tidyr::pivot_longer(
+    cols=c(POTR:RONE,PIPO:PIEN),names_to = "Species", values_to = "Density") %>%
+  mutate(forest_type = factor(
+    forest_type,
+    levels = c("Lower Montane", "Upper Montane","Subalpine"))) %>%
+      mutate(Species = factor(Species,
+                                    levels = c("PIPO","PSME","ABCO","PICO","PIFL", "PIAR","ABLA","PIEN", "QUGA", "RONE","POTR")))
+```
+
+# Facet axis removing labels for species not present in forest types 
+```{r}
+SeedlingsLong2 <- SeedlingsLong %>% 
+  na.omit
+```
+
+# Seedlings plot 
+```{r}
+# Facet wrap seedlings plot
+ggplot(SeedlingsLong2,
+       aes(x = Species, y = Density, fill = burn_sev_category)) +
+  geom_boxplot() + ylim(0, 9500) +
+  facet_wrap(~ forest_type, scales="free_x") +
+  theme_classic() +
+  labs(x = "Species",
+       y = "Seedlings per hectare",
+       fill = "Burn Severity",
+       title = "Seedling Density") +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(1, "cm")) +
+  scale_fill_manual(
+    name = "Burn Severity",
+    labels = c("Low", "High"), values=c("#fd8d3c","#bd0026")) +
+  theme(
+    axis.text.x = element_text(
+      color = "black",
+      size = 6,
+      angle = 45,
+      vjust = .8,
+      hjust = .8
+    ))
+```
+
+#----------- Conifer/decid figure-----------------------------------------------
+
+# Conifer/decid transformations and distributions
+```{r, echo=FALSE}
+# Conifer/decid transformations and distributions
+ThesisData$sqrtConifer <- sqrt(ThesisData$conifer_total)
+ThesisData$sqrtDeciduous <- sqrt(ThesisData$deciduous_total)
+ThesisData$logConifer <- log(ThesisData$conifer_total + 1)
+ThesisData$logDeciduous <- log(ThesisData$deciduous_total + 1)
+par(mfrow = c(2, 2))
+hist(ThesisData$sqrtConifer)
+hist(ThesisData$sqrtDeciduous)
+hist(ThesisData$logConifer)
+hist(ThesisData$logDeciduous)
+```
+
+# Conifer/decid long data for plot
+```{r}
+# Facet wrap conifer/decid data
+DecidConiferLong1 <- ThesisData %>%
+  dplyr::select(forest_type,
+         burn_sev_category,
+         conifer_total,
+         deciduous_total) %>%
+  tidyr::pivot_longer(
+    cols = c("conifer_total", "deciduous_total"),
+    names_to = "TreeGroup",
+    values_to = "Density") %>%
+  mutate(forest_type = factor(
+    forest_type,
+    levels = c("Lower Montane", "Upper Montane","Subalpine"))) %>%
+  mutate(burn_sev_category = factor(burn_sev_category, levels = c("Low","High")))%>%
+  mutate(TreeGroup = factor(TreeGroup, labels = c("Conifer","Deciduous")))
+```
+
+# Conifer/Decid plot 
+```{r}
+# Facet wrap conifer/decid plot
+ggplot(DecidConiferLong1,
+       aes(x = TreeGroup, y = Density, fill = burn_sev_category)) +
+  geom_boxplot() + ylim(0, 28500) +
+  facet_wrap(~ forest_type) +
+  theme_classic() +
+  labs(x = "",
+       y = "Seedlings per hectare",
+       fill = "Burn Severity",
+       title = "Conifer versus Deciduous Regeneration") +
+  theme(legend.position = "bottom",
+        legend.key.width = unit(1, "cm")) +
+  scale_fill_manual(
+    name = "Burn Severity",
+    labels = c("Low", "High"),
+    values = c("#fd8d3c","#bd0026")
+  ) +
+  theme(
+    axis.text.x = element_text(
+      color = "black",
+      size = 8,
+      angle = 0,
+      vjust = .8,
+      hjust = .8
+    ) 
+  ) 
+```
+
+#------------Conifer/decid analyses---------------------------------------------
+
+# GLM conifer/decid, log transform (3rd predictor = logDeciduous density)
+```{r}
+# # GLM conifer/decid, log transform, (3rd predictor = logDeciduous density)
+# GLM_DC_Log <-
+#   glm(
+#     formula = logConifer ~ burn_sev_category * forest_type * logDeciduous,
+#     family = gaussian,
+#     data = ThesisData
+#   )
+# summary(GLM_DC_Log)
+```
+
+# GLM conifer/decid, sqrt transform (3rd predictor = sqrtDeciduous density)
+```{r}
+# GLM conifer/decid, sqrt transform, (3rd predictor = sqrtDeciduous density)
+GLM_DC_Sqrt <-
+  glm(
+    formula = sqrtConifer ~ burn_sev_category * forest_type * sqrtDeciduous,
+    family = gaussian,
+    data = ThesisData
+  )
+summary(GLM_DC_Sqrt)
+```
+
+# !!!! GLM conifer/decid, log transform conifer (3rd predictor = sqrtDeciduous density)
+```{r}
+# # GLM conifer/decid, log transform, (3rd predictor = sqrtDeciduous density)
+# GLM_DC_Transform2 <-
+#   glm(
+#     formula = logConifer ~ burn_sev_category * forest_type * sqrtDeciduous,
+#     family = gaussian,
+#     data = ThesisData
+#   )
+# summary(GLM_DC_Transform2)
+```
+
+# GLM conifer, log transform, 2 predictors 
+```{r}
+# # GLM conifer, log transform, 2 predictors
+# GLMConiferLog <- glm(formula = logConifer ~ burn_sev_category*forest_type, data = ThesisData)
+# summary(GLMConiferLog)
+```
+
+# GLM conifer, sqrt transform, 2 predictors 
+```{r}
+# GLM conifer, sqrt transform, 2 predictors
+GLMConifersqrt <- glm(formula = sqrtConifer ~ burn_sev_category*forest_type, data = ThesisData)
+summary(GLMConifersqrt)
+```
+
+# !!!!! GLM conifer, sqrt transform, 1 predictor
+```{r}
+# GLM conifer, sqrt transform, 1 predictor - forest_type
+GLMConiferForestTypeOnly <- glm(formula = sqrtConifer ~ forest_type, data = ThesisData)
+summary(GLMConiferForestTypeOnly)
+```
+```{r}
+emoutConForestType <- emmeans(GLMConiferForestTypeOnly, ~forest_type)
+pairs(emoutConForestType)
+cld(emoutConForestType)
+```
+
+
+# GLM conifer, sqrt transform, 1 predictor
+```{r}
+# # GLM conifer, sqrt transform, 1 predictor - burn_sev_category
+GLMConiferBurnSevOnly <- glm(formula = sqrtConifer ~ burn_sev_category, data = ThesisData)
+summary(GLMConiferBurnSevOnly)
+```
+
+# GLM deciduous, log transform, 2 predictors 
+```{r}
+# #GLM deciduous, log transform, 2 predictors
+# GLMDecidLog <- glm(formula = logDeciduous ~ burn_sev_category * forest_type, data = ThesisData)
+# summary(GLMDecidLog)
+```
+
+# GLM deciduous, sqrt transform, 2 predictors 
+```{r}
+# #GLM deciduous, log transform, 2 predictors
+# GLMDecidsqrt <- glm(formula = sqrtDeciduous ~ burn_sev_category * forest_type, data = ThesisData)
+# summary(GLMDecidsqrt)
+```
+
+# !!!! Two way ANOVA deciduous, sqrt transform
+```{r}
+# Two way ANOVA deciduous, sqrt transform
+LMFitDecidsqrt <- lm(sqrtDeciduous ~ burn_sev_category * forest_type, data = ThesisData)
+anova(LMFitDecidsqrt)
+par(mfrow = c(1, 2))
+plot(LMFitDecidsqrt, which = 1:2)
+```
+
+# !!!!! Tukey pairs Deciduous Density - Forest Type
+```{r}
+#Tukey pairs Deciduous density 
+emoutDecid <- emmeans(LMFitDecidsqrt, ~forest_type)
+pairs(emoutDecid)
+cld(emoutDecid)
+```
+
+# Conifer/decid, "TreeGroup" long data, log transform 
+```{r}
+# # Conifer/decid Log transform long data
+# DCLog <- ThesisData %>%
+#   select(forest_type,
+#          burn_sev_category,
+#          logConifer, logDeciduous) %>%
+#   pivot_longer(
+#     cols = c("logConifer", "logDeciduous"),
+#     names_to = "TreeGroupLog",
+#     values_to = "Density"
+#   ) %>%
+#   mutate(forest_type = factor(
+#     forest_type,
+#     levels = c("Lower Montane", "Upper Montane", "Subalpine")
+#   )) %>%
+#   mutate(burn_sev_category = factor(burn_sev_category, levels = c("Low", "High")))
+```
+
+# Three way ANOVA conifer/decid, log transform (3rd predictor = TreeGroupLog)
+```{r}
+# # Three way ANOVA with TreeGroup as predictor
+# LMFitDCLog <- lm(Density ~ burn_sev_category*forest_type*TreeGroupLog, data= DCLog)
+# anova(LMFitDCLog)
+# par(mfrow = c(1, 2))
+# plot(LMFitDCLog, which = 1:2)
+```
+
+# GLM conifer/decid, log transform (3rd predictor = TreeGroupLog)
+```{r}
+# GLMFitDCLog <- glm(Density ~ burn_sev_category*forest_type*TreeGroupLog, data= DCLog)
+# summary(GLMFitDCLog)
+```
+
+# Conifer/decid, "TreeGroup" long data, sqrt transform 
+```{r}
+# # Conifer/decid sqrt transform long data
+# DCSqrt <- ThesisData %>%
+#   select(forest_type,
+#          burn_sev_category,
+#          sqrtConifer, sqrtDeciduous) %>%
+#   pivot_longer(
+#     cols = c("sqrtConifer", "sqrtDeciduous"),
+#     names_to = "TreeGroupSqrt",
+#     values_to = "Density"
+#   ) %>%
+#   mutate(forest_type = factor(
+#     forest_type,
+#     levels = c("Lower Montane", "Upper Montane", "Subalpine")
+#   )) %>%
+#   mutate(burn_sev_category = factor(burn_sev_category, levels = c("Low", "High")))
+```
+
+# Three way ANOVA conifer/decid, sqrt transform (3rd predictor = TreeGroupSqrt)
+```{r}
+# # Three way ANOVA with TreeGroup as predictor
+# LMFitDCSqrt <- lm(Density ~ burn_sev_category*forest_type*TreeGroupSqrt, data= DCSqrt)
+# anova(LMFitDCSqrt)
+# par(mfrow = c(1, 2))
+# plot(LMFitDCLog, which = 1:2)
+```
+
+# GLM conifer/decid, sqrt transform (3rd predictor = TreeGroupSqrt)
+```{r}
+# GLMFitDCSqrt <- glm(Density ~ burn_sev_category*forest_type*TreeGroupSqrt, data= DCSqrt)
+# summary(GLMFitDCSqrt)
+```
+
+# Relationship between conifer and deciduous density only 
+```{r}
+ConDecidOnly<- glm(formula=sqrtConifer~sqrtDeciduous, data= ThesisData)
+summary(ConDecidOnly)
+```
+
+```{r}
+# ggplot(data = ThesisData, mapping = aes(x = conifer_total, y = deciduous_total)) +
+#           geom_point() +
+#           geom_smooth()
+```

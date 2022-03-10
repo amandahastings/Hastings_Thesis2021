@@ -1,0 +1,7 @@
+"0","# Conifer/decid transformations and distributions"
+"0","ThesisData$sqrtConifer <- sqrt(ThesisData$conifer_total)"
+"0","ThesisData$sqrtDeciduous <- sqrt(ThesisData$deciduous_total)"
+"0","ThesisData$logConifer <- log(ThesisData$conifer_total + 1)"
+"0","ThesisData$logDeciduous <- log(ThesisData$deciduous_total + 1)"
+"0","par(mfrow = c(2, 2))"
+"0","hist(ThesisData$sqrtConifer)"

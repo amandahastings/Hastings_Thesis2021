@@ -1,0 +1,7 @@
+"0",""
+"0","# # log Shrub ANOVA - not used"
+"0","# ThesisData$logSH <- log(ThesisData$sh_cover + 1)"
+"0","# hist(ThesisData$logSH)"
+"0","# LMFitLogSH <- lm(logSH ~ burn_sev_category * factor(forest_type), data = ThesisData)"
+"0","# anova(LMFitLogSH)"
+"0",""

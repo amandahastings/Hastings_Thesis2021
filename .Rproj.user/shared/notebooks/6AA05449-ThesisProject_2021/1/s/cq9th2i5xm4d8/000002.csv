@@ -1,0 +1,2 @@
+"0","#Read in data "
+"0","ThesisData<-read.csv(""2021.RDataHastings.csv"")"
