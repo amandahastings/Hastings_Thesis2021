@@ -1,0 +1,95 @@
+---
+title: "Thesis_HurdelModels"
+author: "Amanda Hastings"
+date: '2022-03-30'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Load libraries 
+library(tidyverse)
+library(dplyr)
+library(RColorBrewer)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(ggthemes)
+library(gh)
+library(pscl)
+```
+
+
+```{r}
+#Read in data 
+ThesisData<-read.csv("2021.RDataHastings.csv")
+```
+
+
+# Plant Cover Long Data
+```{r}
+# Convert plant cover data to long format
+PlantCoverLong <- ThesisData %>%
+  dplyr::select(forest_type, burn_sev_category, gm_cover:tr_cover) %>%
+  tidyr::pivot_longer(gm_cover:tr_cover,
+               names_to = "FunctionalGroup",
+               values_to = "PercentPlantCover") %>%
+  mutate(FunctionalGroup = factor(FunctionalGroup)) %>%
+  mutate(forest_type = factor(
+    forest_type,
+    levels = c("Lower Montane", "Upper Montane", "Subalpine")
+  ))
+```
+
+
+# Plant Cover Long Data plus Binary Column
+```{r}
+# Round percent cover to four decimal places 
+PlantCoverLong$PercentPlantCover <- round(PlantCoverLong$PercentPlantCover,4)
+
+
+PlantCoverBinary <- PlantCoverLong %>% 
+  mutate("BinaryCover" = case_when(PercentPlantCover == 0.0000 ~ 0,
+         PercentPlantCover != 0.0000 ~ 1))
+```
+
+
+# Summary Statistics All Plant Cover 
+```{r}
+# Create summary statistics table for plant cover including number of zeroes
+StatsPlantCover <- PlantCoverBinary %>% 
+  group_by(burn_sev_category, forest_type, FunctionalGroup)%>% 
+  summarize(n=n(), 
+            mean=mean(PercentPlantCover), 
+            sd=sd(PercentPlantCover), 
+            n_zero=sum(BinaryCover==0)) 
+```
+
+# Plant Cover Nonzeroes 
+```{r}
+PlantCoverNonZero <- PlantCoverBinary %>% 
+  filter(BinaryCover == 1)
+```
+
+
+# Summary Statistics Nonzero Plant Cover 
+```{r}
+StatsPlantNonZero <- PlantCoverNonZero %>% 
+  group_by(burn_sev_category, forest_type, FunctionalGroup)%>% 
+  summarize(n=n(), 
+            mean=mean(PercentPlantCover), 
+            sd=sd(PercentPlantCover))
+```
+
+
+#-----------------------Understory cover analyses-------------------------------
+
+
+
+
+
+
