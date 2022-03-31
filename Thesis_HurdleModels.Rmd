@@ -89,6 +89,47 @@ StatsPlantNonZero <- PlantCoverNonZero %>%
 #-----------------------Understory cover analyses-------------------------------
 
 
+# Shrub Cover Logistic Regression 
+```{r}
+PlantCoverBinary$BinaryCover <- as.factor(PlantCoverBinary$BinaryCover)
+
+ShrubCoverBinary <- PlantCoverBinary %>% 
+  filter(FunctionalGroup == 'sh_cover')
+
+LogisFitSH <- glm(BinaryCover ~ burn_sev_category * forest_type, data=ShrubCoverBinary, family= "binomial" )
+
+summary(LogisFitSH)
+```
+
+
+# Tree Cover Logistic Regression 
+```{r}
+TreeCoverBinary <- PlantCoverBinary %>% 
+  filter(FunctionalGroup == 'tr_cover')
+
+LogisFitTR <- glm(BinaryCover ~ burn_sev_category * forest_type, data=TreeCoverBinary, family= "binomial" )
+
+summary(LogisFitTR)
+```
+
+
+#------------Conifer/decid analyses---------------------------------------------
+
+
+# Deciduous Logistic Regression
+```{r}
+
+```
+
+
+# Conifer Logistic Regression
+```{r}
+
+```
+
+
+
+
 
 
 

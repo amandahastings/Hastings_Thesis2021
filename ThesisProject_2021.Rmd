@@ -416,13 +416,27 @@ cld(emoutDecid)
 ## Conifer density 
 
 
-# Zero-inflated poisson 
+# Zero-inflated Poisson Conifer 
 ```{r}
 ThesisData$conifer_total<-as.integer(ThesisData$conifer_total)
 
 ZpoiConiferFit <- zeroinfl(conifer_total ~ burn_sev_category * forest_type, data=ThesisData)
 summary(ZpoiConiferFit)
 ```
+
+
+
+# Zero-inflated Poisson Deciduous 
+```{r}
+ThesisData$deciduous_total<-as.integer(ThesisData$deciduous_total)
+
+ZpoiDecidFit <- zeroinfl(deciduous_total ~ burn_sev_category * forest_type, data=ThesisData)
+summary(ZpoiDecidFit)
+```
+
+
+
+
 
 
 
