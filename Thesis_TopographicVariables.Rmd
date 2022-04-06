@@ -1,0 +1,96 @@
+---
+title: "Thesis_TopographicVariables"
+author: "Amanda Hastings"
+date: '2022-04-03'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Load libraries 
+library(tidyverse)
+library(dplyr)
+library(RColorBrewer)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(ggthemes)
+library(gh)
+library(pscl)
+```
+
+
+```{r}
+#Read in data 
+ThesisData<-read.csv("2021.RDataHastings.csv")
+```
+
+
+
+# Data frame for investigating topographic variables 
+```{r}
+ThesisData <- ThesisData %>% 
+  mutate("AspectCategory" = case_when(aspect >=45 & aspect <= 134 ~ "East",
+         aspect >= 135 & aspect <=224 ~ "South", 
+         aspect >=225 & aspect <= 314 ~ "West", 
+         TRUE ~ "North"))%>% 
+  mutate("XMCategory" = case_when(AspectCategory == "East"|AspectCategory == "North" ~ "Mesic", 
+                                  AspectCategory == "West"|AspectCategory == "South" ~ "Xeric"))%>% 
+  rowwise()%>%
+  mutate("allseedlings_total" = sum(conifer_total,deciduous_total))
+
+
+ThesisData[,c(1,2,3,4,5,6,7,8,9,10,11,75:ncol(ThesisData))]
+```
+
+
+# Plot of All Seedling Densities by Slope 
+```{r}
+ggplot(mapping=aes(y=allseedlings_total,x=slope, color=burn_sev_category),data=ThesisData)+ 
+  geom_point(alpha=0.5)+ 
+  facet_wrap(~forest_type)+
+  theme_few()
+```
+
+# Plot of All Seedling Densities by Aspect Category 
+```{r}
+ggplot(mapping=aes(y=allseedlings_total,x=AspectCategory, color=burn_sev_category),data=ThesisData)+ 
+  geom_point(alpha=0.5)+ 
+  facet_wrap(~forest_type)+
+  theme_few()
+```
+
+# Plot of All Seedling Densities by Elevation 
+```{r}
+ggplot(mapping=aes(y=allseedlings_total,x=field.elevation..m., color=burn_sev_category),data=ThesisData)+ 
+  geom_point(alpha=0.5)+ 
+  theme_few()
+```
+
+# Study Design Field Elevation and Forest Type
+```{r}
+ggplot(data=ThesisData,mapping=aes(y=field.elevation..m., x=forest_type, color=burn_sev_category))+
+  geom_point(alpha=0.5)+ 
+  theme_few()
+```
+
+
+#-----------------------Understory cover analyses-------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

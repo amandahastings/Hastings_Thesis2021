@@ -29,14 +29,41 @@ library(pscl)
 ```{r}
 #Read in data 
 ThesisData<-read.csv("2021.RDataHastings.csv")
+
+#Format column and label names 
+ThesisData <- ThesisData %>%
+  mutate(forest_type = factor(
+    forest_type,
+    levels = c("Lower Montane", "Upper Montane", "Subalpine")
+  )) %>% 
+  rename("slope"=slope....)
 ```
+
+
+
+# Data frame for investigating topographic variables 
+```{r}
+ThesisData <- ThesisData %>% 
+  mutate("AspectCategory" = case_when(aspect >=45 & aspect <= 134 ~ "East",
+         aspect >= 135 & aspect <=224 ~ "South", 
+         aspect >=225 & aspect <= 314 ~ "West", 
+         TRUE ~ "North"))%>% 
+  mutate("XMCategory" = case_when(AspectCategory == "East"|AspectCategory == "North" ~ "Mesic", 
+                                  AspectCategory == "West"|AspectCategory == "South" ~ "Xeric"))%>% 
+  rowwise()%>%
+  mutate("allseedlings_total" = sum(conifer_total,deciduous_total))
+
+# ThesisData[,c(1,2,3,4,5,6,7,8,9,10,11,75:ncol(ThesisData))]
+```
+
+
 
 
 # Plant Cover Long Data
 ```{r}
 # Convert plant cover data to long format
 PlantCoverLong <- ThesisData %>%
-  dplyr::select(forest_type, burn_sev_category, gm_cover:tr_cover) %>%
+  dplyr::select(forest_type, burn_sev_category, gm_cover:tr_cover, XMCategory) %>%
   tidyr::pivot_longer(gm_cover:tr_cover,
                names_to = "FunctionalGroup",
                values_to = "PercentPlantCover") %>%
@@ -62,8 +89,7 @@ PlantCoverPlot <- ggplot(
   theme_classic() +
   labs(x = "Functional Group",
        y = "Percent Cover",
-       fill = "Burn Severity",
-       title = "Understory Plant Cover") +
+       fill = "Burn Severity") +
   theme(legend.position = "bottom",
         legend.key.width = unit(1, "cm")) +
   theme_few()+
@@ -76,8 +102,12 @@ PlantCoverPlot <- ggplot(
     angle = 30,
     vjust = .8,
     hjust = .8
-  )) +
-  scale_x_discrete(labels = c("Graminoids", "Forbs", "Shrubs", "Seedlings"))
+  ),
+  axis.title.x=element_text(size=11), 
+    axis.title.y=element_text(size=11), 
+    axis.text.y = element_text(size=8), 
+    legend.title=element_text(size=11)) + 
+  scale_x_discrete(labels = c("Forbs", "Graminoids", "Shrubs", "Seedlings"))
 PlantCoverPlot 
 ```
 
@@ -104,20 +134,49 @@ cld(emoutAllPlants)
 ```
 
 
+# 
+```{r}
+#Sqrt transform for percent plant cover
+LMFitPlantAsp <- lm(sqrt(PercentPlantCover) ~ XMCategory, data= PlantCoverLong)
+summary(LMFitPlantAsp)
+par(mfrow = c(1, 2))
+plot(LMFitPlantAsp, which = 1:2)
+```
+
+
+# Total Plant Cover by Aspect
+```{r}
+LMFitAspect <- lm(fb_cover ~ AspectCategory, data=ThesisData)
+anova(LMFitAspect)
+summary(LMFitAspect)
+par(mfrow = c(1, 2))
+plot(LMFitAspect, which = 1:2)
+```
+
+
+# Interaction Plot All Plant Cover
+```{r}
+ggplot(ThesisData,aes(x=forest_type,y=total_cover,group=burn_sev_category, color=burn_sev_category))+
+  geom_smooth()+ 
+  theme_few()
+```
+
+
+
 # Graminoid ANOVA
 ```{r,echo=FALSE}
 # # Graminoid ANOVA
-# hist(ThesisData$gm_cover)
-# LMFitGM <-
-#   lm(gm_cover ~ burn_sev_category * factor(forest_type), data = ThesisData)
-# anova(LMFitGM)
-# par(mfrow = c(1, 2))
-# plot(LMFitGM, which = 1:2)
+hist(ThesisData$gm_cover)
+LMFitGM <-
+  lm(gm_cover ~ burn_sev_category * factor(forest_type), data = ThesisData)
+anova(LMFitGM)
+par(mfrow = c(1, 2))
+plot(LMFitGM, which = 1:2)
 
 # Sqrt Graminoid ANOVA - Analysis used for presentation(s) 
 ThesisData$sqrtGM <- sqrt(ThesisData$gm_cover)
 hist(ThesisData$sqrtGM)
-LMFitsqrtGM <- lm(sqrtGM ~ burn_sev_category * factor(forest_type), data = ThesisData)
+LMFitsqrtGM <- lm(sqrt(gm_cover) ~ burn_sev_category * factor(forest_type), data = ThesisData)
 anova(LMFitsqrtGM)
 par(mfrow = c(1, 2))
 plot(LMFitsqrtGM, which = 1:2)
@@ -136,12 +195,26 @@ plot(LMFitsqrtGM, which = 1:2)
 ```{r}
 #Tukey pairs Sqrt Graminoids
 #Differences by burn severity, but not forest type 
-emoutGM <- emmeans(LMFitsqrtGM, ~ burn_sev_category)
+emoutGM <- emmeans(LMFitsqrtGM, ~ burn_sev_category, transform="response")
 emoutGM
 pairs(emoutGM)
 cld(emoutGM)
 ```
 
+
+```{r}
+backGM <- emmeans(LMFitsqrtGM, pairwise ~ burn_sev_category, transform = "response")
+backGM
+
+```
+
+
+# Interaction Plot Graminoid Cover
+```{r}
+ggplot(ThesisData,aes(x=forest_type,y=gm_cover,group=burn_sev_category, color=burn_sev_category))+ 
+      geom_smooth()+ 
+  theme_few()
+```
 
 # Forb ANOVA
 ```{r, echo=FALSE}
@@ -154,12 +227,12 @@ par(mfrow = c(1, 2))
 plot(LMFitFB, which = 1:2)
 
 # Sqrt Forb ANOVA - Analysis used for presentation(s)
-# ThesisData$sqrtFB <- sqrt(ThesisData$fb_cover)
-# hist(ThesisData$sqrtFB)
-# LMFitsqrtFB <- lm(sqrtFB ~ burn_sev_category * factor(forest_type), data = ThesisData)
-# anova(LMFitsqrtFB)
-# par(mfrow = c(1, 2))
-# plot(LMFitsqrtFB, which = 1:2)
+ThesisData$sqrtFB <- sqrt(ThesisData$fb_cover)
+hist(ThesisData$sqrtFB)
+LMFitsqrtFB <- lm(sqrtFB ~ burn_sev_category * factor(forest_type), data = ThesisData)
+anova(LMFitsqrtFB)
+par(mfrow = c(1, 2))
+plot(LMFitsqrtFB, which = 1:2)
 
 # # log Forb ANOVA - not used
 # ThesisData$logFB <- log(ThesisData$fb_cover + 1)
@@ -174,6 +247,14 @@ emoutFB <- emmeans(LMFitFB, ~ factor(forest_type))
 emoutFB
 pairs(emoutFB)
 cld(emoutFB)
+```
+
+
+# Interaction Plot Forb Cover
+```{r}
+ggplot(ThesisData,aes(x=forest_type,y=fb_cover,group=burn_sev_category, color=burn_sev_category))+ 
+      geom_smooth()+
+  theme_few()
 ```
 
 
@@ -209,12 +290,19 @@ plot(LMFitLogSH, which = 1:2)
 #Tukey pairs Sqrt Shrubs
 #Assumptions not met
 #Attempt hurble model 
-emoutSH <- emmeans(LMFitsqrtSH, ~ burn_sev_category*factor(forest_type))
+emoutSH <- emmeans(LMFitLogSH, ~ burn_sev_category*factor(forest_type))
 emoutSH
 pairs(emoutSH)
 cld(emoutSH)
 ```
 
+
+# Interaction Plot Shrub Cover
+```{r}
+ggplot(ThesisData,aes(x=forest_type,y=sh_cover,group=burn_sev_category, color=burn_sev_category))+ 
+      geom_smooth()+ 
+  theme_few()
+```
 
 # Tree Seedling ANOVA
 ```{r, echo=FALSE}
@@ -252,6 +340,12 @@ pairs(emoutTR)
 cld(emoutTR)
 ```
 
+# Interaction Plot Tree Cover
+```{r}
+ggplot(ThesisData,aes(x=forest_type,y=tr_cover,group=burn_sev_category, color=burn_sev_category))+ 
+      geom_smooth()
+```
+
 
 #---------------------Seedlings species specific figure-------------------------
 
@@ -282,15 +376,14 @@ SeedlingsLong2 <- SeedlingsLong %>%
 # Seedlings plot 
 ```{r}
 # Facet wrap by forest type - seedlings plot
+
 ggplot(SeedlingsLong2,
        aes(x = Species, y = Density, fill = burn_sev_category)) +
   geom_boxplot() + ylim(0, 9500) +
   facet_wrap(~ forest_type, scales="free_x") +
-  theme_classic() +
   labs(x = "Species",
        y = "Seedlings per hectare",
-       fill = "Burn Severity",
-       title = "Seedling Density") +
+       fill = "Burn Severity") +
   theme(legend.position = "bottom",
         legend.key.width = unit(1, "cm")) +
   theme_few() +
@@ -304,7 +397,11 @@ ggplot(SeedlingsLong2,
       angle = 45,
       vjust = .8,
       hjust = .8
-    ))
+    ), 
+    axis.title.x=element_text(size=11), 
+    axis.title.y=element_text(size=11), 
+    axis.text.y = element_text(size=8), 
+    legend.title=element_text(size=11))
 ```
 
 
@@ -335,7 +432,7 @@ DecidConiferLong1 <- ThesisData %>%
   dplyr::select(forest_type,
          burn_sev_category,
          conifer_total,
-         deciduous_total) %>%
+         deciduous_total,XMCategory) %>%
   tidyr::pivot_longer(
     cols = c("conifer_total", "deciduous_total"),
     names_to = "TreeGroup",
@@ -352,20 +449,20 @@ DecidConiferLong1 <- ThesisData %>%
 ```{r}
 # Facet wrap by forest type - conifer/decid plot
 ggplot(DecidConiferLong1,
-       aes(x = TreeGroup, y = Density, fill = burn_sev_category)) +
+       aes(x = TreeGroup, y = Density, fill = XMCategory)) +
   geom_boxplot() + ylim(0, 28500) +
-  facet_wrap(~ forest_type) +
+  facet_grid(burn_sev_category ~ forest_type) +
   theme_classic() +
   labs(x = "",
        y = "Seedlings per hectare",
-       fill = "Burn Severity",
+       # fill = "Burn Severity",
        title = "Conifer versus Deciduous Regeneration") +
   theme(legend.position = "bottom",
         legend.key.width = unit(1, "cm")) +
   theme_few() +
   scale_fill_manual(
-    name = "Burn Severity",
-    labels = c("Low", "High"),
+    name = "Aspect",
+    # labels = c("Low", "High"),
     values = c("#fd8d3c","#bd0026")
   ) +
   theme(
@@ -386,13 +483,28 @@ ggplot(DecidConiferLong1,
 ## Deciduous density 
 
 
+# Zero-inflated Poisson Deciduous 
+```{r}
+ThesisData$deciduous_total<-as.integer(ThesisData$deciduous_total)
+
+ZpoiDecidFit <- zeroinfl(deciduous_total ~ burn_sev_category * forest_type, data=ThesisData)
+
+library(car)
+library(emmeans)
+Anova(ZpoiDecidFit, type=3)
+summary(ZpoiDecidFit)
+emmeans(ZpoiDecidFit,pairwise~burn_sev_category|forest_type,mode="count")
+```
+
+
 # Two way ANOVA deciduous density only, sqrt transform
 ```{r}
 # Two way ANOVA deciduous, sqrt transform
-LMFitDecidsqrt <- lm(sqrtDeciduous ~ burn_sev_category * forest_type, data = ThesisData)
+LMFitDecidsqrt <- lm(sqrt(deciduous_total) ~ burn_sev_category * forest_type, data = ThesisData)
 anova(LMFitDecidsqrt)
 par(mfrow = c(1, 2))
 plot(LMFitDecidsqrt, which = 1:2)
+emmeans
 ```
 
 
@@ -423,26 +535,6 @@ ThesisData$conifer_total<-as.integer(ThesisData$conifer_total)
 ZpoiConiferFit <- zeroinfl(conifer_total ~ burn_sev_category * forest_type, data=ThesisData)
 summary(ZpoiConiferFit)
 ```
-
-
-
-# Zero-inflated Poisson Deciduous 
-```{r}
-ThesisData$deciduous_total<-as.integer(ThesisData$deciduous_total)
-
-ZpoiDecidFit <- zeroinfl(deciduous_total ~ burn_sev_category * forest_type, data=ThesisData)
-summary(ZpoiDecidFit)
-```
-
-
-
-
-
-
-
-
-
-
 
 
 

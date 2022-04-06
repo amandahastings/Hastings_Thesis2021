@@ -3,6 +3,8 @@ title: "Thesis_HurdelModels"
 author: "Amanda Hastings"
 date: '2022-03-30'
 output: html_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -27,6 +29,31 @@ library(pscl)
 ```{r}
 #Read in data 
 ThesisData<-read.csv("2021.RDataHastings.csv")
+```
+
+
+
+# Futher formatting for ThesisData  
+```{r}
+#Add AspectCategory, XMCategory, allseedlings_total columns 
+#Format some column names and levels
+ThesisData <- ThesisData %>% 
+  mutate("AspectCategory" = case_when(aspect >=45 & aspect <= 134 ~ "East",
+         aspect >= 135 & aspect <=224 ~ "South", 
+         aspect >=225 & aspect <= 314 ~ "West", 
+         TRUE ~ "North"))%>% 
+  mutate("XMCategory" = case_when(AspectCategory == "East"|AspectCategory == "North" ~ "Mesic", 
+                                  AspectCategory == "West"|AspectCategory == "South" ~ "Xeric"))%>% 
+  rowwise()%>%
+  mutate("allseedlings_total" = sum(conifer_total,deciduous_total)) %>% 
+  mutate(forest_type = factor(
+    forest_type,
+    levels = c("Lower Montane", "Upper Montane", "Subalpine")
+  )) %>% 
+  rename("slope"=slope....)
+
+
+ThesisData[,c(1,2,3,4,5,6,7,8,9,10,11,75:ncol(ThesisData))]
 ```
 
 
@@ -67,7 +94,9 @@ StatsPlantCover <- PlantCoverBinary %>%
             mean=mean(PercentPlantCover), 
             sd=sd(PercentPlantCover), 
             n_zero=sum(BinaryCover==0)) 
+StatsPlantCover
 ```
+
 
 # Plant Cover Nonzeroes 
 ```{r}
@@ -98,7 +127,37 @@ ShrubCoverBinary <- PlantCoverBinary %>%
 
 LogisFitSH <- glm(BinaryCover ~ burn_sev_category * forest_type, data=ShrubCoverBinary, family= "binomial" )
 
-summary(LogisFitSH)
+library(car)
+library(emmeans)
+Anova(LogisFitSH,type=3)
+emmeans(LogisFitSH,pairwise~forest_type,adjust="none",type="response")
+```
+
+
+# Interaction Plot Shrub Cover
+```{r}
+ggplot(ShrubCoverBinary,aes(x=forest_type,y=PercentPlantCover,group=burn_sev_category, color=burn_sev_category))+ 
+      geom_smooth()
+```
+
+
+# Nonzero Shrub Cover Wide Data
+```{r}
+ShrubNonZeroWide <- ThesisData %>%
+  dplyr::select(ï..PlotID,forest_type, burn_sev_category, gm_cover:tr_cover)%>% 
+  filter(sh_cover != 0.000000)
+```
+
+
+# Nonzero Shrub Cover ANOVA - Log Transformed 
+```{r}
+# Nonzero Shrub ANOVA
+hist(ShrubNonZeroWide$sh_cover)
+LMFitSH_NZ <-
+  lm(log(sh_cover) ~ burn_sev_category * forest_type, data = ShrubNonZeroWide)
+anova(LMFitSH_NZ)
+par(mfrow = c(1, 2))
+plot(LMFitSH_NZ, which = 1:2)
 ```
 
 
@@ -109,26 +168,84 @@ TreeCoverBinary <- PlantCoverBinary %>%
 
 LogisFitTR <- glm(BinaryCover ~ burn_sev_category * forest_type, data=TreeCoverBinary, family= "binomial" )
 
-summary(LogisFitTR)
+Anova(LogisFitTR,type=3)
+emmeans(LogisFitTR,pairwise~forest_type,adjust="none",type="response")
+```
+
+
+# Nonzero Tree Cover Wide Data
+```{r}
+TreeNonZeroWide <- ThesisData %>%
+  dplyr::select(ï..PlotID,forest_type, burn_sev_category, gm_cover:tr_cover)%>% 
+  filter(tr_cover != 0.000000)
+```
+
+
+# Nonzero Tree Cover ANOVA - Log Transformed
+```{r}
+# Nonzero Tree ANOVA
+hist(TreeNonZeroWide$tr_cover)
+LMFitTR_NZ <-
+  lm(log(tr_cover) ~ burn_sev_category * forest_type, data = TreeNonZeroWide)
+anova(LMFitTR_NZ)
+par(mfrow = c(1, 2))
+plot(LMFitTR_NZ, which = 1:2)
 ```
 
 
 #------------Conifer/decid analyses---------------------------------------------
 
 
-# Deciduous Logistic Regression
+# Seedling Total Densities Data
 ```{r}
+# Covert seedlings data to long format
+SeedlingDensTotal <- ThesisData %>%
+  dplyr::select(ï..PlotID,forest_type, burn_sev_category, deciduous_total, conifer_total)
 
 ```
 
+
+# Nonzero Seedling Densities Data
+```{r}
+SeedlingDensBinary <- SeedlingDensTotal %>% 
+  mutate("BinaryDecid" = case_when(deciduous_total == 0.0000 ~ 0,
+         deciduous_total != 0.0000 ~ 1)) %>% 
+  mutate("BinaryConifer" = case_when(conifer_total == 0.0000 ~ 0,
+         conifer_total != 0.0000 ~ 1))
+```
+
+## Deciduous Density
+
+# Deciduous Logistic Regression
+```{r}
+LogisFitDecid <- glm(BinaryDecid ~ burn_sev_category * forest_type, data=SeedlingDensBinary, family= "binomial" )
+
+summary(LogisFitDecid)
+```
+
+
+# Deciduous Nonzero Densities Data 
+```{r}
+NonZeroDecid <- SeedlingDensTotal %>% 
+  filter(deciduous_total != 0.000000)
+  
+```
+
+
+## Conifer Density 
 
 # Conifer Logistic Regression
 ```{r}
+LogisFitConifer <- glm(BinaryConifer ~ burn_sev_category * forest_type, data=SeedlingDensBinary, family= "binomial" )
 
+summary(LogisFitConifer)
 ```
 
 
-
+# Conifer Nonzero Densities Data 
+```{r}
+# NonZeroConifer <- SeedlingDensTotal %>%
+```
 
 
 
