@@ -214,6 +214,7 @@ SeedlingDensBinary <- SeedlingDensTotal %>%
          conifer_total != 0.0000 ~ 1))
 ```
 
+
 ## Deciduous Density
 
 # Deciduous Logistic Regression

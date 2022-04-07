@@ -2,8 +2,10 @@
 title: "ThesisProject_2021"
 author: "Amanda Hastings"
 date: "3/10/2022"
-output: html_document
-editor_options: 
+output:
+  word_document: default
+  html_document: default
+editor_options:
   chunk_output_type: inline
 ---
 
@@ -23,6 +25,7 @@ library(multcompView)
 library(ggthemes)
 library(gh)
 library(pscl)
+library(car)
 ```
 
 
@@ -63,7 +66,7 @@ ThesisData <- ThesisData %>%
 ```{r}
 # Convert plant cover data to long format
 PlantCoverLong <- ThesisData %>%
-  dplyr::select(forest_type, burn_sev_category, gm_cover:tr_cover, XMCategory) %>%
+  dplyr::select(forest_type, burn_sev_category, gm_cover:tr_cover, XMCategory, AspectCategory) %>%
   tidyr::pivot_longer(gm_cover:tr_cover,
                names_to = "FunctionalGroup",
                values_to = "PercentPlantCover") %>%
@@ -134,24 +137,32 @@ cld(emoutAllPlants)
 ```
 
 
-# 
+# One-way ANOVA Plant Cover by Aspect
 ```{r}
 #Sqrt transform for percent plant cover
-LMFitPlantAsp <- lm(sqrt(PercentPlantCover) ~ XMCategory, data= PlantCoverLong)
+LMFitPlantAsp <- lm(sqrt(PercentPlantCover) ~ AspectCategory, data= PlantCoverLong)
 summary(LMFitPlantAsp)
 par(mfrow = c(1, 2))
 plot(LMFitPlantAsp, which = 1:2)
 ```
 
-
-# Total Plant Cover by Aspect
 ```{r}
-LMFitAspect <- lm(fb_cover ~ AspectCategory, data=ThesisData)
-anova(LMFitAspect)
-summary(LMFitAspect)
-par(mfrow = c(1, 2))
-plot(LMFitAspect, which = 1:2)
+ggplot(ThesisData,aes(x=AspectCategory,y=total_cover, color=burn_sev_category))+
+  geom_boxplot()+
+  theme_few()
 ```
+
+
+# Total Forb Cover by Aspect
+```{r}
+LMFitForbAsp <- lm(fb_cover ~ AspectCategory, data=ThesisData)
+anova(LMFitForbAsp)
+summary(LMFitForbAsp)
+par(mfrow = c(1, 2))
+plot(LMFitForbAsp, which = 1:2)
+```
+
+
 
 
 # Interaction Plot All Plant Cover
@@ -379,7 +390,7 @@ SeedlingsLong2 <- SeedlingsLong %>%
 
 ggplot(SeedlingsLong2,
        aes(x = Species, y = Density, fill = burn_sev_category)) +
-  geom_boxplot() + ylim(0, 9500) +
+  geom_boxplot() + ylim(0, 250) +
   facet_wrap(~ forest_type, scales="free_x") +
   labs(x = "Species",
        y = "Seedlings per hectare",
@@ -432,7 +443,7 @@ DecidConiferLong1 <- ThesisData %>%
   dplyr::select(forest_type,
          burn_sev_category,
          conifer_total,
-         deciduous_total,XMCategory) %>%
+         deciduous_total,XMCategory,slope) %>%
   tidyr::pivot_longer(
     cols = c("conifer_total", "deciduous_total"),
     names_to = "TreeGroup",
@@ -448,21 +459,21 @@ DecidConiferLong1 <- ThesisData %>%
 # Conifer/Decid plot 
 ```{r}
 # Facet wrap by forest type - conifer/decid plot
+# Facet wrap conifer/decid plot
 ggplot(DecidConiferLong1,
-       aes(x = TreeGroup, y = Density, fill = XMCategory)) +
+       aes(x = TreeGroup, y = Density, fill = burn_sev_category)) +
   geom_boxplot() + ylim(0, 28500) +
-  facet_grid(burn_sev_category ~ forest_type) +
+  facet_wrap(~ forest_type) +
   theme_classic() +
   labs(x = "",
        y = "Seedlings per hectare",
-       # fill = "Burn Severity",
+       fill = "Burn Severity",
        title = "Conifer versus Deciduous Regeneration") +
   theme(legend.position = "bottom",
         legend.key.width = unit(1, "cm")) +
-  theme_few() +
   scale_fill_manual(
-    name = "Aspect",
-    # labels = c("Low", "High"),
+    name = "Burn Severity",
+    labels = c("Low", "High"),
     values = c("#fd8d3c","#bd0026")
   ) +
   theme(
@@ -471,8 +482,11 @@ ggplot(DecidConiferLong1,
       size = 8,
       angle = 0,
       vjust = .8,
-      hjust = .8
-    ) 
+      hjust = .8),
+    axis.title.x=element_text(size=11), 
+    axis.title.y=element_text(size=11), 
+    axis.text.y = element_text(size=8), 
+    legend.title=element_text(size=11)
   ) 
 ```
 
@@ -482,18 +496,14 @@ ggplot(DecidConiferLong1,
 
 ## Deciduous density 
 
-
-# Zero-inflated Poisson Deciduous 
+# Deciduous Poisson Regression 
 ```{r}
 ThesisData$deciduous_total<-as.integer(ThesisData$deciduous_total)
 
-ZpoiDecidFit <- zeroinfl(deciduous_total ~ burn_sev_category * forest_type, data=ThesisData)
+DecidPoisson <- glm(deciduous_total~ burn_sev_category*forest_type, data=ThesisData, family=poisson) 
+summary(DecidPoisson)
+Anova(DecidPoisson)
 
-library(car)
-library(emmeans)
-Anova(ZpoiDecidFit, type=3)
-summary(ZpoiDecidFit)
-emmeans(ZpoiDecidFit,pairwise~burn_sev_category|forest_type,mode="count")
 ```
 
 
@@ -504,7 +514,6 @@ LMFitDecidsqrt <- lm(sqrt(deciduous_total) ~ burn_sev_category * forest_type, da
 anova(LMFitDecidsqrt)
 par(mfrow = c(1, 2))
 plot(LMFitDecidsqrt, which = 1:2)
-emmeans
 ```
 
 
@@ -527,15 +536,35 @@ cld(emoutDecid)
 
 ## Conifer density 
 
-
-# Zero-inflated Poisson Conifer 
+# Conifer Poisson Regression
 ```{r}
 ThesisData$conifer_total<-as.integer(ThesisData$conifer_total)
-
-ZpoiConiferFit <- zeroinfl(conifer_total ~ burn_sev_category * forest_type, data=ThesisData)
-summary(ZpoiConiferFit)
+ConiferPoisson <- glm(conifer_total~ burn_sev_category*forest_type, data=ThesisData, family=poisson) 
+summary(ConiferPoisson)
+Anova(ConiferPoisson)
 ```
 
+
+```{r}
+emoutConifer <- emmeans(ConiferPoisson, ~burn_sev_category*forest_type)
+pairs(emoutConifer)
+cld(emoutConifer)
+```
+
+
+# Summary Statistics Deciduous and Conifer total densities
+```{r}
+library(kableExtra)
+StatsSeedlings <- DecidConiferLong1 %>% 
+  group_by(burn_sev_category, forest_type, TreeGroup)%>% 
+  summarize(n=n(), 
+            Min=min(Density),
+            Max=max(Density),
+            Mean=mean(Density), 
+            Sd=sd(Density))
+
+StatsSeedlings
+```
 
 
 
